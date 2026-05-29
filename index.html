@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>子ども教育資金シミュレーター</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%234a6fa5'/%3E%3Ctext x='32' y='46' font-size='44' font-family='Hiragino Sans,Yu Gothic,sans-serif' font-weight='700' text-anchor='middle' fill='white'%3E子%3C/text%3E%3C/svg%3E">
+<script src="chart.min.js?v=4.4.0"></script>
+<style>
+  :root {
+    --bg: #f5f4f0;
+    --card: #ffffff;
+    --text: #2c2c2c;
+    --muted: #777;
+    --primary: #4a6fa5;
+    --green: #2e7d32;
+    --yellow: #ef6c00;
+    --red: #c62828;
+    --border: #e0e0e0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Meiryo", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0 auto;
+    padding: 20px;
+    max-width: 1400px;
+    line-height: 1.5;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 0 0 12px; }
+  h3 { font-size: 14px; margin: 16px 0 8px; }
+  .subtitle { color: var(--muted); margin-bottom: 20px; font-size: 13px; }
+  .card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .collapse-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+  }
+  .collapse-header::after {
+    content: '▼';
+    font-size: 10px;
+    color: var(--muted);
+    transition: transform 0.2s;
+  }
+  .card.collapsed .collapse-header::after { transform: rotate(-90deg); }
+  .card.collapsed .collapse-body { display: none; }
+  .collapse-body { margin-top: 14px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 11px; color: var(--muted); font-weight: 500; }
+  .field input, .field select {
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    font-family: inherit;
+  }
+  .field input:focus, .field select:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
+  .children-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    gap: 16px;
+  }
+  .child-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border-top: 4px solid var(--primary);
+  }
+  .child-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    gap: 10px;
+  }
+  .child-name { font-weight: 700; font-size: 17px; }
+  .child-grad { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .status-badge {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .status-green { background: #e8f5e9; color: var(--green); }
+  .status-yellow { background: #fff3e0; color: var(--yellow); }
+  .status-red { background: #ffebee; color: var(--red); }
+  .child-meta-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .child-target-inline input {
+    width: 64px;
+    padding: 2px 6px;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    text-align: right;
+  }
+  .holdings-section {
+    background: #fafaf7;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+  }
+  .holdings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .holdings-title {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .btn-small {
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 3px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-small:hover { opacity: 0.85; }
+  .btn-small.secondary {
+    background: white;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-small:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .holding-item {
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed var(--border);
+  }
+  .holding-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .holding-row1 {
+    display: grid;
+    grid-template-columns: 2fr 1fr auto;
+    gap: 6px;
+    align-items: end;
+    margin-bottom: 6px;
+  }
+  .holding-row2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    align-items: end;
+  }
+  .holding-item .field label { font-size: 10px; }
+  .holding-item .field input,
+  .holding-item .field select {
+    padding: 5px 7px;
+    font-size: 12px;
+    width: 100%;
+  }
+  .btn-remove {
+    background: transparent;
+    border: none;
+    color: var(--red);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0 4px;
+    align-self: end;
+    margin-bottom: 4px;
+  }
+  .result-box {
+    background: #fafaf7;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+  .result-title {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+  .result-main {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--primary);
+  }
+  .result-main small { font-size: 12px; color: var(--muted); font-weight: 500; margin-left: 4px; }
+  .result-sub {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    margin-top: 6px;
+    color: var(--muted);
+    gap: 8px;
+  }
+  .result-sub span { flex: 1; }
+  .chart-wrapper { height: 200px; margin: 12px 0; }
+  .advice {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.6;
+    margin-top: 8px;
+  }
+  .advice-green { background: #e8f5e9; border-left: 4px solid var(--green); }
+  .advice-yellow { background: #fff3e0; border-left: 4px solid var(--yellow); }
+  .advice-red { background: #ffebee; border-left: 4px solid var(--red); }
+  .pattern-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .pattern-item {
+    text-align: center;
+    padding: 8px 4px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  .pattern-label { font-size: 10px; color: var(--muted); margin-bottom: 2px; }
+  .pattern-value { font-size: 14px; font-weight: 700; color: var(--primary); }
+  .note {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+  .total-box {
+    background: linear-gradient(135deg, #4a6fa5 0%, #5d87c9 100%);
+    color: white;
+    padding: 16px 20px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+  }
+  .total-label { font-size: 12px; opacity: 0.9; }
+  .total-value { font-size: 28px; font-weight: 800; margin-top: 2px; }
+  .total-sub { font-size: 12px; opacity: 0.85; margin-top: 4px; }
+  ol.steps { padding-left: 20px; font-size: 13px; line-height: 1.8; }
+  ol.steps b { color: var(--primary); }
+  .fund-row {
+    display: grid;
+    grid-template-columns: 2fr 0.6fr 0.6fr 0.9fr;
+    gap: 8px;
+    align-items: end;
+    margin-bottom: 6px;
+  }
+  .fund-row label { font-size: 10px; }
+  .fund-row input { font-size: 12px; padding: 5px 7px; }
+  .last-updated {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 14px;
+    padding: 24px;
+    max-width: 480px;
+    width: 100%;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  }
+  .modal h2 { font-size: 18px; margin: 0 0 8px; color: var(--primary); }
+  .modal p { font-size: 13px; line-height: 1.6; margin: 8px 0; }
+  .modal .modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 16px;
+  }
+  .modal button {
+    padding: 8px 18px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: white;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  .modal button.primary {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #333;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 2000;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s;
+    max-width: 400px;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.error { background: var(--red); }
+  .toast.success { background: var(--green); }
+
+  /* CSV preview table */
+  .csv-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    margin-top: 8px;
+  }
+  .csv-table th, .csv-table td {
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    text-align: left;
+  }
+  .csv-table th {
+    background: #f5f4f0;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .csv-table .match { color: var(--green); }
+  .csv-table .new { color: var(--primary); }
+  .csv-assign select { font-size: 11px; padding: 2px 4px; }
+
+  @media (max-width: 700px) {
+    body { padding: 12px; }
+    .holding-row1 { grid-template-columns: 1fr auto auto; }
+    .holding-row2 { grid-template-columns: 1fr 1fr 1fr; }
+    .pattern-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<h1>子ども教育資金シミュレーター <span id="appVersion" style="font-size:0.5em;color:var(--muted);font-weight:400;vertical-align:middle;"></span></h1>
+<p class="subtitle">高校卒業（18歳の3月）までに税引後◯万円を目標に、必要な追加積立額を自動計算します</p>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- CSV Import Modal -->
+<div class="modal-overlay" id="csvModal">
+  <div class="modal" style="max-width: 720px;">
+    <h2>楽天証券CSVをインポート</h2>
+    <p style="font-size:12px;line-height:1.6;">
+      楽天証券PC版 →「マイメニュー」→「保有商品一覧」→「投資信託」→ 右上の「<b>CSVダウンロード</b>」で取得したファイルを選択してください。
+      （Shift-JIS / UTF-8 どちらでもOK）
+    </p>
+    <div style="margin-bottom:12px;">
+      <div class="field">
+        <label>取込先のお子さん</label>
+        <select id="csvTargetChild" style="max-width:300px;"></select>
+      </div>
+    </div>
+    <input type="file" id="csvFileInput" accept=".csv,text/csv" style="margin: 10px 0; font-size: 13px;">
+    <div id="csvPreview" style="display:none; margin-top: 10px;">
+      <h3 style="margin: 10px 0 6px;">取込内容プレビュー</h3>
+      <div id="csvPreviewContent" style="max-height: 300px; overflow-y: auto;"></div>
+      <p class="note">※ 選択したお子さんの保有銘柄を<b>CSV内容で置き換え</b>ます。基準価額・取得額も同時に更新されます。</p>
+    </div>
+    <div id="csvError" style="display:none; color: var(--red); font-size: 12px; margin-top: 10px; padding: 8px; background: #ffebee; border-radius: 6px;"></div>
+    <div class="modal-actions">
+      <button onclick="closeCsvModal()">キャンセル</button>
+      <button class="primary" id="csvApplyBtn" onclick="applyCsvImport()" style="display:none;">取込を反映</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fund Registry -->
+<div class="card" id="fundCard">
+  <div class="collapse-header" onclick="toggleCard('fundCard')">
+    <h2>保有ファンド（共通）</h2>
+  </div>
+  <div class="collapse-body">
+    <div id="fundList"></div>
+    <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      <button class="btn-small secondary" onclick="addFund()">＋ ファンド追加</button>
+      <button class="btn-small" id="fetchPriceBtn" onclick="fetchLatestPrices()">基準価額を最新化</button>
+      <span id="fetchStatus" style="font-size:11px; color:var(--muted);"></span>
+    </div>
+    <p class="note">
+      期待リターン μ と ボラティリティ σ はファンドの長期平均値です（変更可）。
+    </p>
+    <p class="note" style="background:#fff8e1;border-left:3px solid #f0c000;padding:8px 10px;border-radius:6px;">
+      ⚠️ 「基準価額を最新化」で<b>自動取得できるのは「eMAXIS Slim 全世界株式（オール・カントリー）」と「eMAXIS Slim 米国株式（S&P500）」の2本のみ</b>です。<br>
+      ご自身で追加したファンドは、基準価額を<b>手動で入力</b>してください（上の「基準価額(1万口)」欄）。
+    </p>
+    <div class="last-updated" id="lastUpdatedDisplay"></div>
+  </div>
+</div>
+
+<!-- Children -->
+<div class="children-grid" id="childrenGrid"></div>
+
+<div style="margin:14px 0 24px;text-align:center;">
+  <button class="btn-small secondary" onclick="addChild()" style="font-size:14px;padding:8px 18px;">＋ お子さんを追加</button>
+</div>
+
+<!-- Overall -->
+<div class="card">
+  <h2>総合アドバイス</h2>
+  <div id="overallAdvice"></div>
+</div>
+
+<script>
+// =======================
+// CONSTANTS
+// =======================
+const APP_VERSION = 'v1.6.2';
+const TAX_RATE = 0.20315;
+
+// CSV/生データ向けプロキシ（中身を変換しないもの。最優先で使う）
+const RAW_PROXIES = [
+  url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
+  url => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url),
+  url => 'https://corsproxy.io/?' + encodeURIComponent(url),
+  url => 'https://thingproxy.freeboard.io/fetch/' + url,
+];
+
+// HTML向けプロキシ（Jina Reader は SPA も実レンダリング後の Markdown を返す）
+const CORS_PROXIES = [
+  url => 'https://r.jina.ai/' + url,
+  ...RAW_PROXIES,
+];
+
+// 投信協会コード → eMAXIS Slim 公式ファンドコード（取得元 #2）
+const EMAXIS_CODES = {
+  '0331418A': '253425', // オール・カントリー
+  '03311187': '253266', // S&P500
+};
+
+// Known fund presets. isin = ISINコード（投信図書館CSVの取得に使用）
+const KNOWN_FUNDS = {
+  orukan: {
+    name: 'eMAXIS Slim 全世界株式（オール・カントリー）',
+    mu: 0.060, sigma: 0.17,
+    unitPrice: 3.4312,
+    assocCode: '0331418A',
+    isin: 'JP90C000H1T1',
+    keywords: ['オール・カントリー', 'オルカン', '全世界株式', 'all country']
+  },
+  sp500: {
+    name: 'eMAXIS Slim 米国株式（S&P500）',
+    mu: 0.070, sigma: 0.17,
+    unitPrice: 3.9527,
+    assocCode: '03311187',
+    isin: 'JP90C000GKC6',
+    keywords: ['S&P500', 'S&P 500', '米国株式', 'sp500']
+  },
+};
+
+const DEFAULT_FUNDS = {};
+for (const [k, v] of Object.entries(KNOWN_FUNDS)) {
+  DEFAULT_FUNDS[k] = { name: v.name, mu: v.mu, sigma: v.sigma, unitPrice: v.unitPrice, assocCode: v.assocCode, isin: v.isin };
+}
+
+// 公開デモ用サンプルデータ（架空の名前・架空の金額。実在の個人情報は含みません）
+const DEFAULT_CHILDREN = [
+  { id: 'c1', name: '長男（例・3歳）', gradMonth: '2041-03', target: 4000000, holdings: [
+    { id: 'h1', fundId: 'sp500',  account: 'nisa',    units: 150000, cost: 500000 },
+    { id: 'h2', fundId: 'orukan', account: 'tokutei', units: 120000, cost: 400000 },
+  ]},
+  { id: 'c2', name: '長女（例・小1）', gradMonth: '2038-03', target: 4000000, holdings: [
+    { id: 'h1', fundId: 'sp500',  account: 'nisa',    units: 90000, cost: 300000 },
+    { id: 'h2', fundId: 'orukan', account: 'tokutei', units: 60000, cost: 200000 },
+  ]},
+];
+
+const DEFAULT_STATE = {
+  lastPriceUpdate: null,
+  funds: JSON.parse(JSON.stringify(DEFAULT_FUNDS)),
+  children: JSON.parse(JSON.stringify(DEFAULT_CHILDREN)),
+};
+
+// =======================
+// STATE
+// =======================
+function loadState() {
+  try {
+    const s = localStorage.getItem('eduSimulatorPublicV1');
+    if (s) {
+      const parsed = JSON.parse(s);
+      const merged = Object.assign({}, DEFAULT_STATE, parsed);
+      // Ensure funds have assocCode / isin from known presets
+      for (const [k, v] of Object.entries(KNOWN_FUNDS)) {
+        if (merged.funds[k]) {
+          if (!merged.funds[k].assocCode) merged.funds[k].assocCode = v.assocCode;
+          if (!merged.funds[k].isin) merged.funds[k].isin = v.isin;
+        }
+      }
+      // 旧データ移行: 個人別 target が無ければ旧グローバル target（or 800万）を補完
+      const legacyTarget = (typeof parsed.target === 'number' && parsed.target > 0) ? parsed.target : 8000000;
+      if (Array.isArray(merged.children)) {
+        merged.children.forEach(c => {
+          if (typeof c.target !== 'number' || c.target <= 0) c.target = legacyTarget;
+        });
+      }
+      delete merged.target; // グローバル target は廃止
+      return merged;
+    }
+  } catch(e) { console.error(e); }
+  return JSON.parse(JSON.stringify(DEFAULT_STATE));
+}
+function saveState() {
+  localStorage.setItem('eduSimulatorPublicV1', JSON.stringify(state));
+}
+let state = loadState();
+let charts = {};
+let pendingCsvData = null; // parsed CSV rows waiting to be applied
+
+// =======================
+// TOAST
+// =======================
+function showToast(msg, type = '', duration = 4000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// =======================
+// HELPER: holding value
+// =======================
+function holdingValue(h) {
+  const fund = state.funds[h.fundId];
+  if (!fund) return 0;
+  return (h.units || 0) * fund.unitPrice;
+}
+
+function childTotalValue(child) {
+  return child.holdings.reduce((sum, h) => sum + holdingValue(h), 0);
+}
+
+function getChildFundParams(child) {
+  let totalValue = 0, weightedMu = 0, weightedSigma = 0;
+  for (const h of child.holdings) {
+    const fund = state.funds[h.fundId];
+    if (!fund) continue;
+    const value = holdingValue(h);
+    totalValue += value;
+    weightedMu += fund.mu * value;
+    weightedSigma += fund.sigma * value;
+  }
+  if (totalValue > 0) {
+    return { mu: weightedMu / totalValue, sigma: weightedSigma / totalValue };
+  }
+  const firstFund = child.holdings[0] ? state.funds[child.holdings[0].fundId] : null;
+  return firstFund ? { mu: firstFund.mu, sigma: firstFund.sigma }
+                   : { mu: 0.06, sigma: 0.17 };
+}
+
+// =======================
+// CALCULATION
+// =======================
+function yearsUntil(gradMonth) {
+  const [y, m] = gradMonth.split('-').map(Number);
+  const grad = new Date(y, m - 1, 1);
+  return Math.max(0.01, (grad - new Date()) / (1000 * 60 * 60 * 24 * 365.25));
+}
+
+function currentAssetsFV(child, annualRate, years) {
+  const factor = Math.pow(1 + annualRate, years);
+  let total = 0;
+  for (const h of child.holdings) {
+    const value = holdingValue(h);
+    const fv = value * factor;
+    if (h.account === 'nisa') {
+      total += fv;
+    } else {
+      const gain = fv - (h.cost || 0);
+      total += fv - Math.max(0, gain) * TAX_RATE;
+    }
+  }
+  return total;
+}
+
+function fvFactorMonthly(r, n) {
+  if (r === 0) return n;
+  return (Math.pow(1 + r, n) - 1) / r;
+}
+
+// お子さんの「今後の積立先」設定 → NISA比率(0〜1)を返す
+//   futureMode: 'nisa'(全額NISA) / 'tokutei'(全額特定) / 'mix'(比率指定)
+//   futureNisaPct: mix時のNISA割合(0〜100)
+function futureNisaFraction(child) {
+  const mode = child.futureMode || 'nisa';
+  if (mode === 'nisa') return 1;
+  if (mode === 'tokutei') return 0;
+  const pct = (typeof child.futureNisaPct === 'number') ? child.futureNisaPct : 50;
+  return Math.max(0, Math.min(100, pct)) / 100;
+}
+
+// 任意の月額で積み立てた場合の years 年後の到達額（税引後）
+// nisaFrac: 追加積立のうちNISA(非課税)に回す割合。残りは特定(課税)で売却益課税。
+function projectWithMonthlyAmount(child, annualRate, years, monthlyAmount, nisaFrac) {
+  const base = currentAssetsFV(child, annualRate, years);
+  if (!monthlyAmount || monthlyAmount <= 0 || !isFinite(monthlyAmount)) return base;
+  const r = Math.pow(1 + annualRate, 1/12) - 1;
+  const n = Math.max(1, Math.round(years * 12));
+  const fvFull = fvFactorMonthly(r, n);
+  // NISA分（非課税）
+  const fvNisa = monthlyAmount * nisaFrac * fvFull;
+  // 特定分（売却益に課税）
+  const tokMonthly = monthlyAmount * (1 - nisaFrac);
+  const fvTokPre = tokMonthly * fvFull;
+  const gainTok = fvTokPre - tokMonthly * n;
+  const fvTok = fvTokPre - Math.max(0, gainTok) * TAX_RATE;
+  return base + fvNisa + fvTok;
+}
+
+// 目標到達に必要な毎月積立額。nisaFrac=1で全非課税、0で全課税。
+function requiredMonthly(shortfall, annualRate, years, nisaFrac) {
+  if (shortfall <= 0) return 0;
+  if (annualRate <= -0.99) return Infinity;
+  const r = Math.pow(1 + annualRate, 1/12) - 1;
+  const n = Math.max(1, Math.round(years * 12));
+  const fvFull = fvFactorMonthly(r, n);
+  const denom = fvFull - (1 - nisaFrac) * (fvFull - n) * TAX_RATE;
+  return shortfall / denom;
+}
+
+// 年1回積立で必要な額。nisaFrac=1で全非課税、0で全課税。
+function requiredAnnual(shortfall, annualRate, years, nisaFrac) {
+  if (shortfall <= 0) return 0;
+  if (annualRate <= -0.99) return Infinity;
+  const nY = Math.max(1, Math.round(years));
+  const fvY = annualRate === 0 ? nY : (Math.pow(1 + annualRate, nY) - 1) / annualRate;
+  const denom = fvY - (1 - nisaFrac) * (fvY - nY) * TAX_RATE;
+  return shortfall / denom;
+}
+
+// 今すぐ一括で必要な額。nisaFrac=1で全非課税、0で全課税。
+function requiredLumpNow(shortfall, annualRate, years, nisaFrac) {
+  if (shortfall <= 0) return 0;
+  const factor = Math.pow(1 + annualRate, years);
+  const denom = factor - (1 - nisaFrac) * (factor - 1) * TAX_RATE;
+  return shortfall / denom;
+}
+
+// グラフ用の推移。追加積立を nisaFrac で NISA/特定 に振り分けて積み上げる。
+function projectTrajectory(child, mu, years, monthlyContribution, nisaFrac) {
+  const months = Math.max(1, Math.round(years * 12));
+  const r = Math.pow(1 + mu, 1/12) - 1;
+  let nisaVal = 0, tokVal = 0, tokCost = 0;
+  for (const h of child.holdings) {
+    const v = holdingValue(h);
+    if (h.account === 'nisa') nisaVal += v;
+    else { tokVal += v; tokCost += (h.cost || 0); }
+  }
+  const nisaAdd = monthlyContribution * nisaFrac;
+  const tokAdd = monthlyContribution * (1 - nisaFrac);
+  const points = [];
+  for (let m = 0; m <= months; m++) {
+    const gain = Math.max(0, tokVal - tokCost);
+    points.push(nisaVal + (tokVal - gain * TAX_RATE));
+    nisaVal *= (1 + r);
+    tokVal  *= (1 + r);
+    nisaVal += nisaAdd;
+    tokVal  += tokAdd;
+    tokCost += tokAdd;
+  }
+  return points;
+}
+
+// =======================
+// FORMATTING
+// =======================
+function fmtYen(v) {
+  if (!isFinite(v) || v === null || isNaN(v)) return '\u2014';
+  if (v < 0) v = 0;
+  if (v >= 100000000) return '\u00A5' + (v/100000000).toFixed(2) + '\u5104';
+  if (v >= 10000) {
+    const man = v / 10000;
+    const s = man >= 100 ? Math.round(man).toLocaleString() : man.toFixed(1).replace(/\.0$/, '');
+    return '\u00A5' + s + '\u4E07';
+  }
+  return '\u00A5' + Math.round(v).toLocaleString();
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// =======================
+// FETCH LATEST PRICES (ONLINE)
+// =======================
+async function fetchWithProxy(url, proxies = CORS_PROXIES) {
+  for (const makeProxy of proxies) {
+    try {
+      const resp = await fetch(makeProxy(url), { signal: AbortSignal.timeout(9000) });
+      if (resp.ok) {
+        const text = await resp.text();
+        if (text && text.length > 50) return text; // 空レスポンス排除
+      }
+    } catch(e) { /* try next proxy */ }
+  }
+  return null;
+}
+
+// 投信図書館(WealthAdvisor)のNAV履歴CSVから最新の基準価額を取り出す
+// CSV例: 年月日,基準価額(円),純資産総額(百万円),... が日付昇順で並ぶ → 最終データ行が最新
+// 日付は「2018年10月31日」など漢字区切り(Shift-JIS)なので、行頭が4桁年で始まる行の2列目を採用。
+function parseLatestNavFromCsv(csv) {
+  const lines = csv.split(/\r?\n/);
+  let last = null;
+  for (const line of lines) {
+    const parts = line.split(',');
+    if (parts.length >= 2 && /^\s*\d{4}/.test(parts[0])) {
+      const num = parts[1].replace(/[^\d.]/g, ''); // 数字以外を除去（,や全角混入対策）
+      if (num) {
+        const p = parseFloat(num);
+        if (p > 1000 && p < 1000000) last = p; // 最後にマッチした行＝最新
+      }
+    }
+  }
+  return last;
+}
+
+// 1つのファンドに対し複数の情報源を順に試す
+async function fetchFundPrice(fund) {
+  // === 取得元1: 投信図書館の公式NAV履歴CSV（最も安定・機械可読） ===
+  if (fund.isin && fund.assocCode) {
+    const csvUrl = `https://toushin-lib.fwg.ne.jp/FdsWeb/FDST030000/csv-file-download?isinCd=${fund.isin}&associFundCd=${fund.assocCode}`;
+    const csv = await fetchWithProxy(csvUrl, RAW_PROXIES);
+    if (csv) {
+      const price = parseLatestNavFromCsv(csv);
+      if (price) {
+        console.log(`[fetchFundPrice] ${fund.name}: ${price}円 (投信図書館CSV)`);
+        return price;
+      }
+      console.warn(`[fetchFundPrice] ${fund.name}: 投信図書館CSV取得OKだが解析失敗`);
+      console.log('[debug CSV snippet]', csv.substring(0, 300));
+    }
+  }
+
+  // === 取得元2: minkabu / eMAXIS公式（HTMLフォールバック） ===
+  const sources = [];
+  if (fund.assocCode) {
+    sources.push({ url: 'https://itf.minkabu.jp/fund/' + fund.assocCode, name: 'minkabu' });
+  }
+  const emaxisCode = fund.assocCode && EMAXIS_CODES[fund.assocCode];
+  if (emaxisCode) {
+    sources.push({ url: 'https://emaxis.am.mufg.jp/fund/' + emaxisCode + '.html', name: 'eMAXIS公式' });
+  }
+  const patterns = [
+    /推計基準価額[^0-9]*?([\d,]{5,})\s*円/,
+    /基準価額\s*(?:\(円\))?[^0-9お]*?([\d,]{5,})\s*円/,
+    /基準価額\s*\|\s*([\d,]{5,})/,
+    /\|\s*基準価額\s*\|\s*([\d,]{5,})\s*\|/,
+    /class="[^"]*price[^"]*"[^>]*>\s*([\d,]{5,})/,
+    /data-price="([\d,]{5,})"/,
+    /"nav"[^}]*?"value"\s*:\s*([\d.]+)/,
+    /"price"\s*:\s*"?([\d,.]{5,})"?/,
+  ];
+  for (const src of sources) {
+    const html = await fetchWithProxy(src.url);
+    if (!html) continue;
+    for (const pat of patterns) {
+      const m = html.match(pat);
+      if (m) {
+        const price = parseFloat(m[1].replace(/,/g, ''));
+        if (price > 1000 && price < 1000000) {
+          console.log(`[fetchFundPrice] ${fund.name}: ${price}円 (from ${src.name})`);
+          return price;
+        }
+      }
+    }
+    console.warn(`[fetchFundPrice] ${fund.name}: ${src.name} 取得は成功したが解析失敗`);
+  }
+  return null;
+}
+
+async function fetchLatestPrices() {
+  const btn = document.getElementById('fetchPriceBtn');
+  const statusEl = document.getElementById('fetchStatus');
+  btn.disabled = true;
+  statusEl.textContent = '取得中...';
+
+  const fundsWithCode = Object.entries(state.funds).filter(([, f]) => f.assocCode);
+  if (fundsWithCode.length === 0) {
+    statusEl.textContent = '協会コードが設定されたファンドがありません';
+    btn.disabled = false;
+    return;
+  }
+
+  let updated = 0, failed = 0;
+
+  for (const [fid, fund] of fundsWithCode) {
+    statusEl.textContent = `取得中... ${fund.name.substring(0, 15)}`;
+    try {
+      const price = await fetchFundPrice(fund);
+      if (price) {
+        fund.unitPrice = price / 10000; // 基準価額(1万口あたり) → 1口単価
+        updated++;
+      } else {
+        failed++;
+      }
+    } catch(e) {
+      console.error('Price fetch error for ' + fid, e);
+      failed++;
+    }
+  }
+
+  if (updated > 0) {
+    state.lastPriceUpdate = new Date().toISOString();
+    saveState();
+    renderFunds();
+    renderChildren();
+    recalculate();
+    showToast(`${updated}件の基準価額を更新しました` + (failed > 0 ? `（${failed}件失敗）` : ''), 'success');
+  } else {
+    showToast('基準価額の取得に失敗しました。手動で入力してください。', 'error');
+  }
+
+  statusEl.textContent = updated > 0
+    ? `${updated}件更新完了` + (failed > 0 ? ` / ${failed}件失敗` : '')
+    : '取得失敗 — 手動入力してください';
+  btn.disabled = false;
+}
+
+// =======================
+// CSV IMPORT (楽天証券)
+// =======================
+function openCsvModal() {
+  // Populate child selector
+  const sel = document.getElementById('csvTargetChild');
+  sel.innerHTML = state.children.map((c, i) =>
+    `<option value="${i}">${escapeHtml(c.name)}</option>`
+  ).join('');
+
+  document.getElementById('csvFileInput').value = '';
+  document.getElementById('csvPreview').style.display = 'none';
+  document.getElementById('csvError').style.display = 'none';
+  document.getElementById('csvApplyBtn').style.display = 'none';
+  pendingCsvData = null;
+  document.getElementById('csvModal').classList.add('show');
+}
+
+function closeCsvModal() {
+  document.getElementById('csvModal').classList.remove('show');
+  pendingCsvData = null;
+}
+
+// Listen for file selection
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('csvFileInput').addEventListener('change', handleCsvFile);
+});
+
+async function handleCsvFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const errEl = document.getElementById('csvError');
+  const prevEl = document.getElementById('csvPreview');
+  const prevContent = document.getElementById('csvPreviewContent');
+  const applyBtn = document.getElementById('csvApplyBtn');
+  errEl.style.display = 'none';
+  prevEl.style.display = 'none';
+  applyBtn.style.display = 'none';
+
+  try {
+    let text = await readFileAsText(file);
+    const rows = parseCsv(text);
+    if (rows.length < 2) throw new Error('CSVにデータ行がありません');
+
+    // ヘッダー行を自動検出（SBI等は先頭に説明行・空行が入るため1行目決め打ちしない）
+    let headerIdx = rows.findIndex(r =>
+      r.some(c => /ファンド名|銘柄(名)?|投資信託名/.test(c.replace(/\s/g, '')))
+    );
+    if (headerIdx < 0) headerIdx = 0;
+
+    const headers = rows[headerIdx].map(h => h.trim());
+    const data = rows.slice(headerIdx + 1).filter(r => r.length >= 3 && r.some(c => c.trim()));
+
+    // Detect columns (flexible matching)
+    const colMap = detectColumns(headers);
+    if (!colMap.name) throw new Error('ファンド名の列が見つかりません。楽天証券またはSBI証券の保有商品一覧CSVか確認してください。');
+
+    const parsed = [];
+    for (const row of data) {
+      const fundName = (row[colMap.name] || '').trim();
+      if (!fundName) continue;
+
+      const account = detectAccount(row[colMap.account] || '');
+      const units = parseNum(row[colMap.units]);
+      const cost = parseNum(row[colMap.cost] || row[colMap.costTotal]);
+      const basisPrice = parseNum(row[colMap.basisPrice]);
+      const evalValue = parseNum(row[colMap.evalValue]);
+
+      // Match to existing fund
+      const matchedFundId = matchFund(fundName);
+
+      parsed.push({
+        rawName: fundName,
+        matchedFundId,
+        account,
+        units,
+        cost,
+        basisPrice,
+        evalValue,
+      });
+    }
+
+    if (parsed.length === 0) throw new Error('投信の保有データが見つかりません');
+
+    pendingCsvData = parsed;
+
+    // Show preview
+    let html = '<table class="csv-table"><thead><tr>' +
+      '<th>ファンド名</th><th>マッチ</th><th>口座</th><th>口数</th><th>取得額</th><th>基準価額</th><th>評価額</th>' +
+      '</tr></thead><tbody>';
+    for (const p of parsed) {
+      const matchLabel = p.matchedFundId
+        ? `<span class="match">${escapeHtml(state.funds[p.matchedFundId]?.name?.substring(0,15) || p.matchedFundId)}</span>`
+        : '<span class="new">新規登録</span>';
+      html += `<tr>
+        <td>${escapeHtml(p.rawName.substring(0, 30))}</td>
+        <td>${matchLabel}</td>
+        <td>${p.account === 'nisa' ? 'NISA' : '特定'}</td>
+        <td>${p.units.toLocaleString()}</td>
+        <td>${fmtYen(p.cost)}</td>
+        <td>${p.basisPrice ? p.basisPrice.toLocaleString() + '円' : '-'}</td>
+        <td>${fmtYen(p.evalValue)}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    prevContent.innerHTML = html;
+    prevEl.style.display = 'block';
+    applyBtn.style.display = 'inline-block';
+
+  } catch(err) {
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
+  }
+}
+
+function readFileAsText(file) {
+  return new Promise((resolve) => {
+    // Read as both UTF-8 and Shift-JIS, pick the one with more Japanese characters
+    const tryEncoding = (enc) => new Promise(res => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = () => res('');
+      r.readAsText(file, enc);
+    });
+    Promise.all([tryEncoding('UTF-8'), tryEncoding('Shift_JIS')]).then(([utf8, sjis]) => {
+      // Count recognizable Japanese chars (hiragana, katakana, kanji, common symbols)
+      const jpCount = s => (s.match(/[\u3000-\u9FFF\uFF00-\uFFEF]/g) || []).length;
+      const garbledCount = s => (s.match(/\uFFFD/g) || []).length;
+      // Prefer the encoding with more Japanese and fewer replacement chars
+      if (jpCount(sjis) > jpCount(utf8) || garbledCount(utf8) > 0) {
+        resolve(sjis);
+      } else {
+        resolve(utf8);
+      }
+    });
+  });
+}
+
+function parseCsv(text) {
+  const lines = text.split(/\r?\n/);
+  return lines.map(line => {
+    const cols = [];
+    let inQuote = false, current = '';
+    for (const ch of line) {
+      if (ch === '"') { inQuote = !inQuote; continue; }
+      if (ch === ',' && !inQuote) { cols.push(current); current = ''; continue; }
+      current += ch;
+    }
+    cols.push(current);
+    return cols;
+  });
+}
+
+function detectColumns(headers) {
+  const map = {};
+  headers.forEach((h, i) => {
+    const lh = h.replace(/\s/g, '');
+    if (/ファンド名|銘柄名|投資信託名/.test(lh)) map.name = i;
+    if (/口座(区分|種別)?$/.test(lh) || lh === '口座') map.account = i;
+    if (/保有口数|数量|口数/.test(lh) && !/金額/.test(lh)) map.units = i;
+    if (/取得(価額|単価).*平均|平均取得/.test(lh)) map.cost = i;
+    if (/取得(金額|総額)/.test(lh)) map.costTotal = i;
+    if (/基準価額/.test(lh)) map.basisPrice = i;
+    if (/評価額|時価(評価)?額/.test(lh)) map.evalValue = i;
+  });
+  // Fallbacks by position if headers don't match cleanly
+  if (!map.name && headers.length >= 2) map.name = 0;
+  return map;
+}
+
+function detectAccount(val) {
+  const v = val.trim();
+  if (/NISA|ニーサ|ジュニア/.test(v)) return 'nisa';
+  return 'tokutei';
+}
+
+function parseNum(s) {
+  if (!s) return 0;
+  return parseFloat(String(s).replace(/[,\s円口]/g, '').replace(/[^\d.\-]/g, '')) || 0;
+}
+
+function matchFund(csvName) {
+  const lower = csvName.toLowerCase();
+  // Check known funds by keywords
+  for (const [fid, kf] of Object.entries(KNOWN_FUNDS)) {
+    if (state.funds[fid] && kf.keywords.some(kw => lower.includes(kw.toLowerCase()))) {
+      return fid;
+    }
+  }
+  // Check existing funds by name substring
+  for (const [fid, f] of Object.entries(state.funds)) {
+    if (lower.includes(f.name.substring(0, 10).toLowerCase()) ||
+        f.name.toLowerCase().includes(lower.substring(0, 10))) {
+      return fid;
+    }
+  }
+  return null;
+}
+
+function applyCsvImport() {
+  if (!pendingCsvData || pendingCsvData.length === 0) return;
+  const cIdx = parseInt(document.getElementById('csvTargetChild').value);
+  const child = state.children[cIdx];
+  if (!child) return;
+
+  // Process each row
+  const newHoldings = [];
+  for (const row of pendingCsvData) {
+    let fundId = row.matchedFundId;
+
+    // If no match, create new fund
+    if (!fundId) {
+      fundId = 'f' + Date.now() + Math.random().toString(36).substring(2, 5);
+      state.funds[fundId] = {
+        name: row.rawName,
+        mu: 0.05, sigma: 0.15,
+        unitPrice: row.basisPrice ? row.basisPrice / 10000 : 1.0,
+        assocCode: ''
+      };
+    }
+
+    // Update basis price if available
+    if (row.basisPrice > 0) {
+      state.funds[fundId].unitPrice = row.basisPrice / 10000;
+    }
+
+    // Calculate cost: if we have per-unit cost, multiply by units; otherwise use evalValue as fallback
+    let cost = row.cost;
+    if (cost > 0 && cost < 100) {
+      // Looks like a per-unit cost, multiply
+      cost = cost * row.units;
+    }
+    if (!cost && row.evalValue > 0) {
+      cost = row.evalValue; // Assume no gain/loss if no cost info
+    }
+
+    newHoldings.push({
+      id: 'h' + Date.now() + Math.random().toString(36).substring(2, 5),
+      fundId,
+      account: row.account,
+      units: row.units,
+      cost: cost,
+    });
+  }
+
+  child.holdings = newHoldings;
+  state.lastPriceUpdate = new Date().toISOString();
+  saveState();
+  closeCsvModal();
+  renderFunds();
+  renderChildren();
+  recalculate();
+  showToast(`${child.name} に ${newHoldings.length}件の保有銘柄を取込みました`, 'success');
+}
+
+// =======================
+// RENDER: Funds
+// =======================
+function renderFunds() {
+  const list = document.getElementById('fundList');
+  list.innerHTML = '';
+  const header = document.createElement('div');
+  header.className = 'fund-row';
+  header.innerHTML = `
+    <div style="font-size:10px;color:var(--muted);font-weight:600;">ファンド名</div>
+    <div style="font-size:10px;color:var(--muted);font-weight:600;">μ (%/年)</div>
+    <div style="font-size:10px;color:var(--muted);font-weight:600;">σ (%/年)</div>
+    <div style="font-size:10px;color:var(--muted);font-weight:600;">基準価額(1万口)</div>
+  `;
+  list.appendChild(header);
+
+  Object.entries(state.funds).forEach(([fid, fund]) => {
+    const row = document.createElement('div');
+    row.className = 'fund-row';
+    row.innerHTML = `
+      <div class="field"><input type="text" data-fund="${fid}" data-field="name" value="${escapeHtml(fund.name)}"></div>
+      <div class="field"><input type="number" data-fund="${fid}" data-field="mu" value="${(fund.mu*100).toFixed(1)}" step="0.1"></div>
+      <div class="field"><input type="number" data-fund="${fid}" data-field="sigma" value="${(fund.sigma*100).toFixed(1)}" step="0.1"></div>
+      <div class="field"><input type="number" data-fund="${fid}" data-field="basisPrice10k" value="${Math.round(fund.unitPrice * 10000)}" step="1"></div>
+    `;
+    list.appendChild(row);
+  });
+
+  list.querySelectorAll('input').forEach(el => {
+    el.addEventListener('input', e => {
+      const fid = e.target.dataset.fund;
+      const field = e.target.dataset.field;
+      const v = e.target.value;
+      if (field === 'name') state.funds[fid].name = v;
+      else if (field === 'mu') state.funds[fid].mu = (parseFloat(v) || 0) / 100;
+      else if (field === 'sigma') state.funds[fid].sigma = (parseFloat(v) || 0) / 100;
+      else if (field === 'basisPrice10k') state.funds[fid].unitPrice = (parseFloat(v) || 0) / 10000;
+      saveState();
+      renderChildren();
+      recalculate();
+    });
+  });
+
+  const lu = document.getElementById('lastUpdatedDisplay');
+  if (state.lastPriceUpdate) {
+    const d = new Date(state.lastPriceUpdate);
+    const daysAgo = Math.floor((Date.now() - d.getTime()) / (1000*60*60*24));
+    lu.textContent = `最終価額更新: ${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}（${daysAgo}日前）`;
+  } else {
+    lu.textContent = '最終価額更新: まだ更新されていません';
+  }
+}
+
+function addFund() {
+  const id = 'f' + Date.now();
+  state.funds[id] = { name: '新しいファンド', mu: 0.05, sigma: 0.15, unitPrice: 1.0, assocCode: '' };
+  saveState();
+  renderFunds();
+  renderChildren();
+  recalculate();
+}
+
+// =======================
+// RENDER: Children
+// =======================
+function renderChildren() {
+  const grid = document.getElementById('childrenGrid');
+  grid.innerHTML = '';
+  state.children.forEach((child, cIdx) => {
+    const card = document.createElement('div');
+    card.className = 'child-card';
+
+    const holdingsHtml = child.holdings.map((h, hIdx) => {
+      const fundOpts = Object.entries(state.funds)
+        .map(([fid, f]) => `<option value="${fid}" ${h.fundId===fid?'selected':''}>${escapeHtml(f.name.substring(0, 20))}</option>`)
+        .join('');
+      const value = holdingValue(h);
+      return `
+        <div class="holding-item">
+          <div class="holding-row1">
+            <div class="field">
+              <label>ファンド</label>
+              <select data-c="${cIdx}" data-h="${hIdx}" data-f="fundId">${fundOpts}</select>
+            </div>
+            <div class="field">
+              <label>口座区分</label>
+              <select data-c="${cIdx}" data-h="${hIdx}" data-f="account">
+                <option value="nisa" ${h.account==='nisa'?'selected':''}>NISA（非課税）</option>
+                <option value="tokutei" ${h.account==='tokutei'?'selected':''}>特定（課税）</option>
+              </select>
+            </div>
+            <button class="btn-remove" data-c="${cIdx}" data-h="${hIdx}" title="削除">✕</button>
+          </div>
+          <div class="holding-row2">
+            <div class="field">
+              <label>口数</label>
+              <input type="number" data-c="${cIdx}" data-h="${hIdx}" data-f="units" value="${h.units||0}" step="1">
+            </div>
+            <div class="field">
+              <label>評価額（今日）</label>
+              <input type="number" data-c="${cIdx}" data-h="${hIdx}" data-f="value" value="${Math.round(value)}" step="1000">
+            </div>
+            <div class="field">
+              <label>取得額</label>
+              <input type="number" data-c="${cIdx}" data-h="${hIdx}" data-f="cost" value="${h.cost||0}" step="10000" ${h.account==='nisa'?'disabled':''}>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    card.innerHTML = `
+      <div class="child-header">
+        <div>
+          <div class="child-name">${escapeHtml(child.name)}</div>
+          <div class="child-grad">高校卒業: ${child.gradMonth}</div>
+        </div>
+        <div class="child-grad child-target-inline" style="margin-top:4px;white-space:nowrap;">
+          目標 <input type="number" data-c="${cIdx}" data-f="targetMan" value="${Math.round((child.target || 8000000) / 10000)}" step="50"> 万円
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="status-badge" id="status-${child.id}">—</div>
+          <button class="btn-remove-child" onclick="removeChild(${cIdx})" title="このお子さんを削除" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:2px 4px;">🗑</button>
+        </div>
+      </div>
+      <div class="child-meta-row">
+        <div class="field">
+          <label>表示名</label>
+          <input type="text" data-c="${cIdx}" data-f="name" value="${escapeHtml(child.name)}">
+        </div>
+        <div class="field">
+          <label>高校卒業年月</label>
+          <input type="month" data-c="${cIdx}" data-f="gradMonth" value="${child.gradMonth}">
+        </div>
+      </div>
+      <div class="holdings-section">
+        <div class="holdings-header">
+          <div class="holdings-title">保有銘柄（現在: ${fmtYen(childTotalValue(child))}）</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn-small secondary" onclick="openCsvModalFor(${cIdx})">CSV取込</button>
+            <button class="btn-small" onclick="addHolding(${cIdx})">＋ 追加</button>
+          </div>
+        </div>
+        ${holdingsHtml || '<div style="font-size:12px;color:var(--muted);text-align:center;padding:10px;">保有銘柄なし</div>'}
+      </div>
+      <div id="results-${child.id}"></div>
+      <div class="chart-wrapper"><canvas id="chart-${child.id}"></canvas></div>
+      <div id="advice-${child.id}"></div>
+    `;
+    grid.appendChild(card);
+  });
+
+  grid.querySelectorAll('input, select').forEach(el => {
+    el.addEventListener('input', handleInput);
+    if (el.tagName === 'SELECT') el.addEventListener('change', handleInput);
+  });
+  grid.querySelectorAll('.btn-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const c = parseInt(btn.dataset.c), h = parseInt(btn.dataset.h);
+      state.children[c].holdings.splice(h, 1);
+      saveState(); renderChildren(); recalculate();
+    });
+  });
+}
+
+function openCsvModalFor(cIdx) {
+  openCsvModal();
+  document.getElementById('csvTargetChild').value = cIdx;
+}
+
+function handleInput(e) {
+  const c = parseInt(e.target.dataset.c);
+  const hIdx = e.target.dataset.h;
+  const field = e.target.dataset.f;
+  let val = e.target.value;
+
+  if (hIdx !== undefined) {
+    const h = state.children[c].holdings[parseInt(hIdx)];
+    if (field === 'fundId') { h.fundId = val; }
+    else if (field === 'account') { h.account = val; }
+    else if (field === 'units') { h.units = parseFloat(val) || 0; }
+    else if (field === 'cost') { h.cost = parseFloat(val) || 0; }
+    else if (field === 'value') {
+      const newValue = parseFloat(val) || 0;
+      if (h.units > 0) {
+        state.funds[h.fundId].unitPrice = newValue / h.units;
+        state.lastPriceUpdate = new Date().toISOString();
+      } else if (state.funds[h.fundId]?.unitPrice > 0) {
+        h.units = Math.round(newValue / state.funds[h.fundId].unitPrice);
+      }
+    }
+    saveState();
+    renderChildren(); renderFunds(); recalculate();
+    requestAnimationFrame(() => {
+      const sel = `[data-c="${c}"][data-h="${hIdx}"][data-f="${field}"]`;
+      const el = document.querySelector(sel);
+      if (el) { el.focus(); if (el.select) el.select(); }
+    });
+  } else {
+    if (field === 'name') state.children[c].name = val;
+    else if (field === 'gradMonth') state.children[c].gradMonth = val;
+    else if (field === 'targetMan') state.children[c].target = (parseFloat(val) || 0) * 10000; // 万円→円
+    saveState(); recalculate();
+    // 名前・卒業年月だけテキスト即時更新（目標額の入力欄は破壊しないよう触らない）
+    if (field === 'name' || field === 'gradMonth') {
+      const cards = document.querySelectorAll('#childrenGrid .child-card');
+      if (cards[c]) {
+        cards[c].querySelector('.child-name').textContent = state.children[c].name;
+        cards[c].querySelector('.child-grad').textContent = '高校卒業: ' + state.children[c].gradMonth;
+      }
+    }
+  }
+}
+
+function addHolding(cIdx) {
+  const fids = Object.keys(state.funds);
+  state.children[cIdx].holdings.push({
+    id: 'h' + Date.now(), fundId: fids[0] || 'orukan', account: 'nisa', units: 0, cost: 0
+  });
+  saveState(); renderChildren(); recalculate();
+}
+
+function addChild() {
+  const n = state.children.length + 1;
+  state.children.push({
+    id: 'c' + Date.now(),
+    name: 'お子さん' + n,
+    gradMonth: '2040-03',
+    target: 8000000,
+    futureMode: 'nisa',
+    futureNisaPct: 50,
+    holdings: []
+  });
+  saveState(); renderChildren(); recalculate();
+}
+
+function removeChild(cIdx) {
+  const child = state.children[cIdx];
+  if (!child) return;
+  if (!confirm(`「${child.name}」を削除しますか？\nこの操作は取り消せません。`)) return;
+  // チャートインスタンスを破棄
+  if (charts[child.id]) { charts[child.id].destroy(); delete charts[child.id]; }
+  state.children.splice(cIdx, 1);
+  saveState(); renderChildren(); recalculate();
+}
+
+// =======================
+// RECALCULATE
+// =======================
+function recalculate() {
+  // 既存保有は各銘柄の口座(NISA/特定)で課税/非課税を処理。
+  // 今後の追加積立は、お子さんごとの「今後の積立先」設定(futureMode)に従う。
+  let totalMonthlyRequired = 0;
+  let worstStatus = 'green';
+
+  state.children.forEach((child, cIdx) => {
+   try {
+    const target = (typeof child.target === 'number' && child.target > 0) ? child.target : 8000000;
+    const years = yearsUntil(child.gradMonth);
+    const nisaFrac = futureNisaFraction(child); // 追加積立のNISA比率
+    const { mu, sigma } = getChildFundParams(child);
+    const band = sigma / Math.sqrt(Math.max(1, years));
+    const muLow = Math.max(-0.5, mu - band);
+    const muHigh = mu + band;
+
+    function scen(r) {
+      const cfv = currentAssetsFV(child, r, years);
+      const shortfall = Math.max(0, target - cfv);
+      const monthly = requiredMonthly(shortfall, r, years, nisaFrac);
+      return { cfv, shortfall, monthly };
+    }
+    const mid = scen(mu), low = scen(muLow), high = scen(muHigh);
+    const yearlyPmt = requiredAnnual(mid.shortfall, mu, years, nisaFrac);
+    const lumpNow = requiredLumpNow(mid.shortfall, mu, years, nisaFrac);
+    const currentMidFV = currentAssetsFV(child, mu, years);
+    const currentLowFV = currentAssetsFV(child, muLow, years);
+
+    let status, statusText, adviceText;
+    if (currentLowFV >= target) {
+      status = 'green'; statusText = '順調';
+      adviceText = `<b>追加積立なしでも</b>、下振れシナリオ（μ=${(muLow*100).toFixed(1)}%）で目標達成見込み。`;
+    } else if (currentMidFV >= target) {
+      status = 'yellow'; statusText = '許容範囲';
+      adviceText = `主軸では達成見込み。下振れ備えで <b>月 ${fmtYen(low.monthly)}</b> の追加積立を推奨。`;
+    } else if (mid.monthly > 0 && isFinite(mid.monthly)) {
+      status = 'red'; statusText = '追加必要';
+      adviceText = `目標まで届きません。<b>月 ${fmtYen(mid.monthly)}</b> の追加積立が必要。下振れ時は <b>月 ${fmtYen(low.monthly)}</b>。`;
+    } else {
+      status = 'red'; statusText = '要見直し';
+      adviceText = '目標達成が困難です。目標額・時期・ファンドの見直しを。';
+    }
+
+    if (status === 'red') worstStatus = 'red';
+    else if (status === 'yellow' && worstStatus !== 'red') worstStatus = 'yellow';
+    totalMonthlyRequired += (isFinite(mid.monthly) ? mid.monthly : 0);
+
+    const badge = document.getElementById(`status-${child.id}`);
+    if (badge) { badge.textContent = statusText; badge.className = `status-badge status-${status}`; }
+
+    const mix = child.holdings.map(h => {
+      const f = state.funds[h.fundId];
+      return f ? `${f.name.substring(0,10)}(${h.account==='nisa'?'N':'特'})` : '';
+    }).filter(Boolean).join(' + ') || '(未設定)';
+
+    // what-if（任意月額シミュレート）: 保存値がなければ推奨額(mid.monthly)を5000円単位で丸めて初期値に
+    if (!child.whatIfMonthly || child.whatIfMonthly <= 0) {
+      const seed = isFinite(mid.monthly) && mid.monthly > 0 ? mid.monthly : 10000;
+      child.whatIfMonthly = Math.max(5000, Math.round(seed / 5000) * 5000);
+    }
+    const whatIfMonthly = child.whatIfMonthly;
+    const whatIfFV = projectWithMonthlyAmount(child, mu, years, whatIfMonthly, nisaFrac);
+
+    // 今後の積立先 設定
+    const fMode = child.futureMode || 'nisa';
+    const fPct = (typeof child.futureNisaPct === 'number') ? child.futureNisaPct : 50;
+
+    const resBox = document.getElementById(`results-${child.id}`);
+    if (resBox) resBox.innerHTML = `
+      <div class="result-box">
+        <div class="result-title">現状維持での到達見込み（税引後） μ=${(mu*100).toFixed(1)}%</div>
+        <div class="result-main">
+          <span style="font-size:0.6em;color:var(--muted);font-weight:600;">現状</span>
+          <span style="font-size:0.75em;color:var(--muted);">${fmtYen(childTotalValue(child))}</span>
+          <span style="color:var(--muted);margin:0 4px;">→</span>
+          ${fmtYen(mid.cfv)}
+          <small>/ 目標${fmtYen(target)}</small>
+        </div>
+        <div class="result-sub">
+          <span>下振 ${fmtYen(low.cfv)}</span><span>主軸 ${fmtYen(mid.cfv)}</span><span>上振 ${fmtYen(high.cfv)}</span>
+        </div>
+        <div style="margin-top:6px;font-size:11px;color:var(--muted);">
+          残り ${years.toFixed(1)}年 / 不足 <b>${fmtYen(Math.max(0, target - mid.cfv))}</b>
+        </div>
+      </div>
+      <div class="result-box">
+        <div class="result-title">目標達成に必要な追加投資（主軸）</div>
+        <div style="font-size:11px;color:var(--muted);margin:2px 0 8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          今後の積立先:
+          <select class="future-mode" data-c="${cIdx}" style="font-size:12px;padding:2px 4px;">
+            <option value="nisa" ${fMode==='nisa'?'selected':''}>NISA（非課税）</option>
+            <option value="tokutei" ${fMode==='tokutei'?'selected':''}>特定（課税）</option>
+            <option value="mix" ${fMode==='mix'?'selected':''}>MIX（比率指定）</option>
+          </select>
+          <span class="mix-ratio" data-c="${cIdx}" style="${fMode==='mix'?'':'display:none;'}white-space:nowrap;">
+            NISA <input type="number" class="future-nisa-pct" data-c="${cIdx}" value="${fPct}" min="0" max="100" step="5" style="width:48px;padding:2px 4px;font-size:12px;text-align:right;"> ％ ： 特定 ${100 - fPct}％
+          </span>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:space-between;">
+          <div class="result-main" style="margin:0;">月 ${fmtYen(mid.monthly)}</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.6;flex:1;min-width:180px;">
+            もし月
+            <input type="number" class="whatif-input" data-c="${cIdx}" value="${whatIfMonthly}" step="5000" style="width:80px;padding:2px 4px;font-size:12px;">
+            円で積み立てたら
+            <div style="font-size:16px;font-weight:700;color:var(--primary);margin-top:2px;">
+              → <span class="whatif-output" data-c="${cIdx}">${fmtYen(whatIfFV)}</span>
+              <span style="font-size:10px;color:var(--muted);font-weight:400;">（主軸 ${years.toFixed(1)}年後・税引後）</span>
+            </div>
+          </div>
+        </div>
+        <div class="pattern-grid">
+          <div class="pattern-item"><div class="pattern-label">毎月積立</div><div class="pattern-value">${fmtYen(mid.monthly)}</div></div>
+          <div class="pattern-item"><div class="pattern-label">年1回</div><div class="pattern-value">${fmtYen(yearlyPmt)}</div></div>
+          <div class="pattern-item"><div class="pattern-label">今すぐ一括</div><div class="pattern-value">${fmtYen(lumpNow)}</div></div>
+        </div>
+        <div class="result-sub" style="margin-top:10px;">
+          <span>下振時 月${fmtYen(low.monthly)}</span><span>上振時 月${fmtYen(high.monthly)}</span>
+        </div>
+      </div>`;
+
+    const canvas = document.getElementById(`chart-${child.id}`);
+    if (canvas) {
+      if (charts[child.id]) charts[child.id].destroy();
+      const mc = isFinite(mid.monthly) ? mid.monthly : 0;
+      const pLow = projectTrajectory(child, muLow, years, mc, nisaFrac);
+      const pMid = projectTrajectory(child, mu, years, mc, nisaFrac);
+      const pHigh = projectTrajectory(child, muHigh, years, mc, nisaFrac);
+      const labels = pMid.map((_, i) => (i/12).toFixed(1));
+      charts[child.id] = new Chart(canvas, {
+        type: 'line',
+        data: { labels, datasets: [
+          { label: '下振れ', data: pLow, borderColor: '#e57373', borderWidth: 1.5, pointRadius: 0, tension: 0.1 },
+          { label: '主軸', data: pMid, borderColor: '#4a6fa5', borderWidth: 2.2, pointRadius: 0, tension: 0.1 },
+          { label: '上振れ', data: pHigh, borderColor: '#81c784', borderWidth: 1.5, pointRadius: 0, tension: 0.1 },
+          { label: '目標', data: new Array(pMid.length).fill(target), borderColor: '#999', borderWidth: 1.2, borderDash: [6,3], pointRadius: 0 },
+        ]},
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { intersect: false, mode: 'index' },
+          plugins: {
+            legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12, padding: 8 } },
+            tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + fmtYen(ctx.parsed.y) } }
+          },
+          scales: {
+            y: { ticks: { callback: v => fmtYen(v), font: { size: 9 } }, grid: { color: '#eee' } },
+            x: { ticks: { font: { size: 9 }, maxTicksLimit: 8, callback: (v, i) => labels[i] + 'y' }, grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    const advEl = document.getElementById(`advice-${child.id}`);
+    if (advEl) advEl.innerHTML = `<div class="advice advice-${status}">${adviceText}</div>`;
+
+    // what-if 入力欄のイベント（recalculate() のたびに再生成されるので毎回再アタッチ）
+    const whatIfInput = resBox && resBox.querySelector('.whatif-input');
+    if (whatIfInput) {
+      whatIfInput.addEventListener('input', (e) => {
+        const cIdx = parseInt(e.target.dataset.c);
+        const v = parseFloat(e.target.value) || 0;
+        state.children[cIdx].whatIfMonthly = v;
+        saveState();
+        const ch = state.children[cIdx];
+        const yrs = yearsUntil(ch.gradMonth);
+        const { mu: m } = getChildFundParams(ch);
+        const fv = projectWithMonthlyAmount(ch, m, yrs, v, futureNisaFraction(ch));
+        const out = document.querySelector(`.whatif-output[data-c="${cIdx}"]`);
+        if (out) out.textContent = fmtYen(fv);
+      });
+    }
+
+    // 今後の積立先: モード選択
+    const fModeSel = resBox && resBox.querySelector('.future-mode');
+    if (fModeSel) {
+      fModeSel.addEventListener('change', (e) => {
+        const cIdx = parseInt(e.target.dataset.c);
+        state.children[cIdx].futureMode = e.target.value;
+        saveState(); renderChildren(); recalculate();
+      });
+    }
+    // 今後の積立先: MIX比率（確定時に反映）
+    const fPctInput = resBox && resBox.querySelector('.future-nisa-pct');
+    if (fPctInput) {
+      fPctInput.addEventListener('change', (e) => {
+        const cIdx = parseInt(e.target.dataset.c);
+        let p = parseFloat(e.target.value);
+        if (!isFinite(p)) p = 0;
+        state.children[cIdx].futureNisaPct = Math.max(0, Math.min(100, p));
+        saveState(); recalculate();
+      });
+    }
+   } catch(err) {
+     console.error('recalculate error for child', child && child.id, err);
+   }
+  });
+
+  // Overall
+  const childCount = state.children.length;
+  const msg = {
+    green:  '全員、追加積立なしでも目標達成見込み。',
+    yellow: '主軸では達成見込みですが、下振れに備えた追加積立があると安心。',
+    red:    '目標達成には追加積立が必要です。下記の金額を参考に、無理のない範囲で積立を再開してください。'
+  }[worstStatus];
+
+  document.getElementById('overallAdvice').innerHTML = `
+    <div class="total-box">
+      <div class="total-label">${childCount}人合計の必要追加積立（主軸シナリオ・毎月）</div>
+      <div class="total-value">${fmtYen(totalMonthlyRequired)} / 月</div>
+      <div class="total-sub">${childCount === 0 ? '「＋ お子さんを追加」から登録してください。' : msg}</div>
+    </div>
+    <h3>使い方</h3>
+    <ol class="steps">
+      <li><b>初回</b>：「楽天証券CSVで一括取込」ボタンで各お子さんの保有銘柄を一括登録。</li>
+      <li><b>定期更新</b>：「<b>基準価額を最新化</b>」ボタンで全ファンドの基準価額をオンライン取得 → 全お子さんの評価額が自動更新。</li>
+      <li><b>追加購入時</b>：口数と取得額を手動更新。</li>
+      <li><b>今後の積立先</b>：お子さんごとに NISA / 特定 / MIX を選ぶと、追加投資の税計算に反映されます。</li>
+    </ol>
+    <p class="note">
+      計算前提: 特定口座は売却益に20.315%課税。各お子さんのμ/σは保有銘柄の金額加重平均。
+      下振れ/上振れは μ ± σ/√N（約68%の信頼区間）。
+    </p>`;
+}
+
+// =======================
+// COLLAPSE / GLOBAL LISTENERS
+// =======================
+function toggleCard(id) { document.getElementById(id).classList.toggle('collapsed'); }
+
+document.getElementById('csvFileInput').addEventListener('change', handleCsvFile);
+
+// =======================
+// INIT
+// =======================
+document.getElementById('appVersion').textContent = APP_VERSION;
+document.title = `子ども教育資金シミュレーター ${APP_VERSION}`;
+renderFunds();
+renderChildren();
+recalculate();
+</script>
+</body>
+</html>
